@@ -124,6 +124,11 @@
         // e.button === 1 -> Middle click
         if (e.button === 1) {
             e.preventDefault(); // Prevent the default middle-click behavior
+            // If closest() finds an anchor tag with an href, we stop and let the browser
+            // handle its default behavior (opening the link in a new tab).
+            if (e.target.closest('a[href]')) {
+                return;
+            }
             if (!isScrollModeActive) {
                 activateScrollMode(e);
             }
