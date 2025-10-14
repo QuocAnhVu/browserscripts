@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Middle Click Scroll (Hold to Scroll)
 // @namespace    http://tampermonkey.net/
-// @version      5.0
-// @description  Hold down the middle mouse button to scroll the element under the cursor. The page continuously scrolls based on the mouse's distance and direction from the initial point.
+// @version      7.0
+// @description  Hold down the middle mouse button to scroll the element under the cursor in any direction. Ignores clicks on links.
 // @author       quoc.v.anh@gmail.com
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -15,17 +15,19 @@
     /** @type {boolean} - Flag to indicate if scroll mode is active */
     let isScrollModeActive = false;
 
-    /** @type {number} - Initial Y-coordinate of the mouse when the mode is activated */
+    /** @type {number} - Initial X/Y-coordinates of the mouse when the mode is activated */
+    let startX = 0;
     let startY = 0;
 
-    /** @type {number} - The current amount to scroll continuously */
-    let scrollAmount = 0;
+    /** @type {number} - The current amount to scroll continuously on each axis */
+    let scrollAmountX = 0;
+    let scrollAmountY = 0;
 
     /** @type {number | null} - ID for storing requestAnimationFrame */
     let animationFrameId = null;
 
-    /** @type {HTMLElement | Window | null} - The element to be scrolled. Can be an element or the window itself. */
-    let scrollTargetElement = null; // --- NEW: To store the scroll target
+    /** @type {HTMLElement | Window | null} - The element to be scrolled. */
+    let scrollTargetElement = null;
 
     /** @type {number} - Sensitivity/speed factor, adjust this value to change the scrolling speed */
     const SENSITIVITY_FACTOR = 0.5;
@@ -42,7 +44,8 @@
             z-index: 99999999;
             pointer-events: none; /* Allow mouse events to pass through this element */
             display: none; /* Hidden by default */
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="white" width="32" height="32"><circle cx="16" cy="16" r="3"/><path d="M16 4 L12 8 L20 8 Z M16 28 L12 24 L20 24 Z"/></svg>');
+            /* --- 4-WAY SVG ICON --- */
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="white" width="32" height="32"><circle cx="16" cy="16" r="3"/><path d="M16 4 L12 8 L20 8 Z M16 28 L12 24 L20 24 Z M4 16 L8 12 L8 20 Z M28 16 L24 12 L24 20 Z"/></svg>');
             background-size: 80%;
             background-repeat: no-repeat;
             background-position: center;
@@ -68,33 +71,29 @@
             }
             return;
         }
-        // --- MODIFIED: Use the dynamic scroll target ---
-        if (scrollAmount !== 0 && scrollTargetElement) {
-            scrollTargetElement.scrollBy(0, scrollAmount);
+        if ((scrollAmountX !== 0 || scrollAmountY !== 0) && scrollTargetElement) {
+            scrollTargetElement.scrollBy(scrollAmountX, scrollAmountY);
         }
         animationFrameId = requestAnimationFrame(performScroll);
     };
 
     // --- Function to activate scroll mode ---
     const activateScrollMode = (e) => {
-        // --- Find the scrollable parent element ---
         let currentElement = e.target;
         while (currentElement && currentElement !== document.body) {
-            // Check if the element is vertically scrollable
-            if (currentElement.scrollHeight > currentElement.clientHeight) {
+            if (currentElement.scrollHeight > currentElement.clientHeight || currentElement.scrollWidth > currentElement.clientWidth) {
                 scrollTargetElement = currentElement;
-                break; // Found the target, exit loop
+                break;
             }
             currentElement = currentElement.parentElement;
         }
 
-        // If no specific element was found, fall back to the window
         if (!scrollTargetElement) {
             scrollTargetElement = window;
         }
-        // --- Found the scrollable parent element ---
 
         isScrollModeActive = true;
+        startX = e.clientX;
         startY = e.clientY;
         document.body.style.cursor = 'all-scroll';
 
@@ -102,7 +101,6 @@
         indicator.style.top = `${e.clientY - 16}px`;
         indicator.style.display = 'block';
 
-        // Start the scroll loop
         performScroll();
     };
 
@@ -111,9 +109,9 @@
         isScrollModeActive = false;
         document.body.style.cursor = 'default';
         indicator.style.display = 'none';
-        scrollAmount = 0; // Reset the scroll amount
-        scrollTargetElement = null; // --- NEW: Reset the scroll target
-        // The loop will automatically stop on the next performScroll check
+        scrollAmountX = 0;
+        scrollAmountY = 0;
+        scrollTargetElement = null;
     };
 
     /**
@@ -121,14 +119,11 @@
      * @param {MouseEvent} e
      */
     const handleMouseDown = (e) => {
-        // e.button === 1 -> Middle click
         if (e.button === 1) {
-            e.preventDefault(); // Prevent the default middle-click behavior
-            // If closest() finds an anchor tag with an href, we stop and let the browser
-            // handle its default behavior (opening the link in a new tab).
             if (e.target.closest('a[href]')) {
                 return;
             }
+            e.preventDefault();
             if (!isScrollModeActive) {
                 activateScrollMode(e);
             }
@@ -140,7 +135,6 @@
      * @param {MouseEvent} e
      */
     const handleMouseUp = (e) => {
-        // e.button === 1 -> Middle click
         if (e.button === 1 && isScrollModeActive) {
             e.preventDefault();
             deactivateScrollMode();
@@ -155,21 +149,23 @@
     const handleMouseMove = (e) => {
         if (!isScrollModeActive) return;
 
+        const currentX = e.clientX;
         const currentY = e.clientY;
+        const deltaX = currentX - startX;
         const deltaY = currentY - startY;
 
-        scrollAmount = deltaY * SENSITIVITY_FACTOR;
+        scrollAmountX = deltaX * SENSITIVITY_FACTOR;
+        scrollAmountY = deltaY * SENSITIVITY_FACTOR;
     };
 
     // Bind event listeners
-    window.addEventListener('mousedown', handleMouseDown, true); // Use the capture phase to handle it first
-    window.addEventListener('mouseup', handleMouseUp, true);     // Use the capture phase to handle it first
+    window.addEventListener('mousedown', handleMouseDown, true);
+    window.addEventListener('mouseup', handleMouseUp, true);
     window.addEventListener('mousemove', handleMouseMove, false);
     window.addEventListener('contextmenu', (e) => {
         if (isScrollModeActive) {
             e.preventDefault(); // Prevent context menu while scrolling
         }
     }, true);
-
 
 })();
