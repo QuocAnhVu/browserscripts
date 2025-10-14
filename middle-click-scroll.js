@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Middle Click Scroll (Hold to Scroll)
 // @namespace    http://tampermonkey.net/
-// @version      7.0
-// @description  Hold down the middle mouse button to scroll the element under the cursor in any direction. Ignores clicks on links.
+// @version      8
+// @description  Hold down the middle mouse button to scroll. Independently targets horizontal and vertical scroll elements under the cursor. Ignores clicks on links.
 // @author       quoc.v.anh@gmail.com
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -26,8 +26,9 @@
     /** @type {number | null} - ID for storing requestAnimationFrame */
     let animationFrameId = null;
 
-    /** @type {HTMLElement | Window | null} - The element to be scrolled. */
-    let scrollTargetElement = null;
+    /** @type {HTMLElement | Window | null} - The elements to be scrolled for each axis. */
+    let scrollTargetX = null;
+    let scrollTargetY = null;
 
     /** @type {number} - Sensitivity/speed factor, adjust this value to change the scrolling speed */
     const SENSITIVITY_FACTOR = 0.5;
@@ -44,14 +45,12 @@
             z-index: 99999999;
             pointer-events: none; /* Allow mouse events to pass through this element */
             display: none; /* Hidden by default */
-            /* --- 4-WAY SVG ICON --- */
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="white" width="32" height="32"><circle cx="16" cy="16" r="3"/><path d="M16 4 L12 8 L20 8 Z M16 28 L12 24 L20 24 Z M4 16 L8 12 L8 20 Z M28 16 L24 12 L24 20 Z"/></svg>');
             background-size: 80%;
             background-repeat: no-repeat;
             background-position: center;
-            /* --- TASTEFUL BLUR EFFECT --- */
             backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px); /* For Safari support */
+            -webkit-backdrop-filter: blur(2px);
         }
     `);
 
@@ -71,25 +70,45 @@
             }
             return;
         }
-        if ((scrollAmountX !== 0 || scrollAmountY !== 0) && scrollTargetElement) {
-            scrollTargetElement.scrollBy(scrollAmountX, scrollAmountY);
+
+        if (scrollAmountX !== 0 && scrollTargetX) {
+            scrollTargetX.scrollBy(scrollAmountX, 0);
         }
+        if (scrollAmountY !== 0 && scrollTargetY) {
+            scrollTargetY.scrollBy(0, scrollAmountY);
+        }
+
         animationFrameId = requestAnimationFrame(performScroll);
     };
 
     // --- Function to activate scroll mode ---
     const activateScrollMode = (e) => {
-        let currentElement = e.target;
-        while (currentElement && currentElement !== document.body) {
-            if (currentElement.scrollHeight > currentElement.clientHeight || currentElement.scrollWidth > currentElement.clientWidth) {
-                scrollTargetElement = currentElement;
+        // Search for the vertical scroll target
+        let currentElementY = e.target;
+        while (currentElementY && currentElementY !== document.body) {
+            if (currentElementY.scrollHeight > currentElementY.clientHeight) {
+                scrollTargetY = currentElementY;
                 break;
             }
-            currentElement = currentElement.parentElement;
+            currentElementY = currentElementY.parentElement;
         }
 
-        if (!scrollTargetElement) {
-            scrollTargetElement = window;
+        // Search for the horizontal scroll target
+        let currentElementX = e.target;
+        while (currentElementX && currentElementX !== document.body) {
+            if (currentElementX.scrollWidth > currentElementX.clientWidth) {
+                scrollTargetX = currentElementX;
+                break;
+            }
+            currentElementX = currentElementX.parentElement;
+        }
+
+        // Fallback to the window if no specific element was found for each axis
+        if (!scrollTargetY) {
+            scrollTargetY = window;
+        }
+        if (!scrollTargetX) {
+            scrollTargetX = window;
         }
 
         isScrollModeActive = true;
@@ -111,12 +130,12 @@
         indicator.style.display = 'none';
         scrollAmountX = 0;
         scrollAmountY = 0;
-        scrollTargetElement = null;
+        scrollTargetX = null;
+        scrollTargetY = null;
     };
 
     /**
      * Mouse down event handler, used to activate the mode
-     * @param {MouseEvent} e
      */
     const handleMouseDown = (e) => {
         if (e.button === 1) {
@@ -132,7 +151,6 @@
 
     /**
      * Mouse up event handler, used to deactivate the mode
-     * @param {MouseEvent} e
      */
     const handleMouseUp = (e) => {
         if (e.button === 1 && isScrollModeActive) {
@@ -144,7 +162,6 @@
 
     /**
      * Mouse move event handler, used only to update scroll speed and direction
-     * @param {MouseEvent} e
      */
     const handleMouseMove = (e) => {
         if (!isScrollModeActive) return;
@@ -164,7 +181,7 @@
     window.addEventListener('mousemove', handleMouseMove, false);
     window.addEventListener('contextmenu', (e) => {
         if (isScrollModeActive) {
-            e.preventDefault(); // Prevent context menu while scrolling
+            e.preventDefault();
         }
     }, true);
 
