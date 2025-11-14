@@ -34,3 +34,30 @@ To use these scripts, you need a browser extension that can manage and inject us
 
 - **Cons:**
   - Smaller user base compared to Tampermonkey.
+
+## Available Scripts
+
+### Middle Click Scroll (`middle-click-scroll.js`)
+
+Hold down the middle mouse button to scroll smoothly in any direction. The script independently targets horizontal and vertical scroll elements under the cursor, providing omni-directional scrolling with visual feedback.
+
+**Features:**
+- Independent horizontal and vertical scrolling
+- Visual indicator showing scroll mode is active
+- Ignores middle-clicks on links (preserves default "open in new tab" behavior)
+- Adjustable sensitivity
+- Works on all websites
+
+**Usage:** Install the script and hold down your middle mouse button anywhere on a page to activate scroll mode. Move your mouse away from the starting point to control scroll direction and speed.
+
+### Claude Code Sidebar Toggle (`claude-sidebar-toggle.js`)
+
+Adds a toggle button to collapse/expand the Claude Code sidebar, freeing up screen space when working on smaller displays.
+
+**Features:**
+- Toggle button integrated into the title bar (left of chat title)
+- Instantly collapses sidebar from 600px to 0px
+- Matches Claude's UI styling
+- Works on claude.ai
+
+**Usage:** Click the toggle button (« / ») in the title bar to collapse or expand the sidebar.
